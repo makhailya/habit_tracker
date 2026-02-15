@@ -1,11 +1,14 @@
 """
 Celery задачи для отправки напоминаний о привычках.
 """
-import logging
+
 import asyncio
+import logging
 from datetime import datetime, timedelta
+
 from celery import shared_task
 from django.utils import timezone
+
 from .models import Habit
 from .telegram_bot import telegram_service
 
@@ -20,15 +23,12 @@ def send_habit_reminder(habit_id):
     :param habit_id: ID привычки
     """
     try:
-        habit = Habit.objects.select_related('user', 'related_habit').get(
-            id=habit_id
-        )
+        habit = Habit.objects.select_related("user", "related_habit").get(id=habit_id)
 
         # Проверяем, есть ли у пользователя Telegram ID
         if not habit.user.telegram_chat_id:
             logger.warning(
-                f"У пользователя {habit.user.email} "
-                f"не указан telegram_chat_id"
+                f"У пользователя {habit.user.email} " f"не указан telegram_chat_id"
             )
             return
 
@@ -38,8 +38,7 @@ def send_habit_reminder(habit_id):
         # Отправляем сообщение
         asyncio.run(
             telegram_service.send_message(
-                chat_id=habit.user.telegram_chat_id,
-                message=message
+                chat_id=habit.user.telegram_chat_id, message=message
             )
         )
 
@@ -65,10 +64,10 @@ def schedule_habit_reminders():
     # в ближайший час
     hour_later = (now + timedelta(hours=1)).time()
 
-    habits = Habit.objects.select_related('user').filter(
+    habits = Habit.objects.select_related("user").filter(
         user__telegram_chat_id__isnull=False,
         time__gte=current_time,
-        time__lt=hour_later
+        time__lt=hour_later,
     )
 
     for habit in habits:
@@ -77,17 +76,10 @@ def schedule_habit_reminders():
         # нужно выполнить сегодня
 
         # Планируем отправку напоминания в указанное время
-        eta = timezone.make_aware(
-            datetime.combine(current_date, habit.time)
-        )
+        eta = timezone.make_aware(datetime.combine(current_date, habit.time))
 
         if eta > now:
-            send_habit_reminder.apply_async(
-                args=[habit.id],
-                eta=eta
-            )
+            send_habit_reminder.apply_async(args=[habit.id], eta=eta)
             logger.info(
-                f"Запланировано напоминание для привычки "
-                f"{habit.id} на {eta}"
+                f"Запланировано напоминание для привычки " f"{habit.id} на {eta}"
             )
-            

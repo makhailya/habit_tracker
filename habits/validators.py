@@ -7,9 +7,7 @@ def validate_execution_time(value):
     Время выполнения не должно превышать 120 секунд.
     """
     if value > 120:
-        raise ValidationError(
-            'Время выполнения не должно превышать 120 секунд.'
-        )
+        raise ValidationError("Время выполнения не должно превышать 120 секунд.")
 
 
 def validate_periodicity(value):
@@ -18,13 +16,9 @@ def validate_periodicity(value):
     Нельзя выполнять привычку реже, чем 1 раз в 7 дней.
     """
     if value < 1:
-        raise ValidationError(
-            'Периодичность должна быть не менее 1 дня.'
-        )
+        raise ValidationError("Периодичность должна быть не менее 1 дня.")
     if value > 7:
-        raise ValidationError(
-            'Нельзя выполнять привычку реже, чем 1 раз в 7 дней.'
-        )
+        raise ValidationError("Нельзя выполнять привычку реже, чем 1 раз в 7 дней.")
 
 
 def validate_pleasant_habit(habit):
@@ -34,12 +28,10 @@ def validate_pleasant_habit(habit):
     """
     if habit.is_pleasant:
         if habit.reward:
-            raise ValidationError(
-                'У приятной привычки не может быть вознаграждения.'
-            )
+            raise ValidationError("У приятной привычки не может быть вознаграждения.")
         if habit.related_habit:
             raise ValidationError(
-                'У приятной привычки не может быть связанной привычки.'
+                "У приятной привычки не может быть связанной привычки."
             )
 
 
@@ -50,8 +42,8 @@ def validate_reward_and_related_habit(habit):
     """
     if habit.reward and habit.related_habit:
         raise ValidationError(
-            'Нельзя одновременно указать вознаграждение и связанную привычку. '
-            'Выберите что-то одно.'
+            "Нельзя одновременно указать вознаграждение и связанную привычку. "
+            "Выберите что-то одно."
         )
 
 
@@ -61,7 +53,6 @@ def validate_related_habit_is_pleasant(habit):
     """
     if habit.related_habit and not habit.related_habit.is_pleasant:
         raise ValidationError(
-            'В связанные привычки могут попадать только привычки '
-            'с признаком приятной привычки.'
+            "В связанные привычки могут попадать только привычки "
+            "с признаком приятной привычки."
         )
-    

@@ -1,1 +1,7 @@
-max-line-length = 119
+[flake8]
+exclude = 
+    */migrations/*,
+    venv,
+    __pycache__,
+    manage.py
+max-line-length = 120

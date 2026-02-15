@@ -1,10 +1,12 @@
 """
 Интеграция с Telegram для отправки напоминаний о привычках.
 """
+
 import logging
+
+from django.conf import settings
 from telegram import Bot
 from telegram.error import TelegramError
-from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +36,7 @@ class TelegramService:
 
         try:
             await self.bot.send_message(
-                chat_id=chat_id,
-                text=message,
-                parse_mode='HTML'
+                chat_id=chat_id, text=message, parse_mode="HTML"
             )
             logger.info(f"Сообщение отправлено в чат {chat_id}")
             return True
@@ -51,7 +51,7 @@ class TelegramService:
         :param habit: Объект привычки
         :return: Отформатированное сообщение
         """
-        message = f"🔔 <b>Напоминание о привычке!</b>\n\n"
+        message = "🔔 <b>Напоминание о привычке!</b>\n\n"
         message += f"⏰ Время: {habit.time.strftime('%H:%M')}\n"
         message += f"📍 Место: {habit.place}\n"
         message += f"✨ Действие: {habit.action}\n"

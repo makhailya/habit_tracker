@@ -234,6 +234,47 @@ coverage html  # для HTML отчета
 flake8
 ```
 
+## Деплой на production сервер 🚀
+
+### Автоматический деплой через GitHub Actions
+
+Проект настроен для автоматического деплоя при каждом push в main/develop ветки.
+
+**GitHub Actions автоматически:**
+1. ✅ Запускает все тесты
+2. ✅ Проверяет code style (flake8)
+3. ✅ Измеряет покрытие тестами
+4. ✅ Деплоит на сервер (после успешных тестов)
+
+### Быстрый старт деплоя
+
+```bash
+# 1. Настройте сервер (один раз)
+ssh root@your_server_ip
+curl -O https://raw.githubusercontent.com/your-username/habit_tracker/main/server-setup.sh
+chmod +x server-setup.sh
+sudo ./server-setup.sh https://github.com/your-username/habit_tracker.git
+
+# 2. Настройте GitHub Secrets (один раз)
+# См. DEPLOYMENT.md
+
+# 3. Push в main - всё остальное автоматически!
+git push origin main
+```
+
+**Подробная документация:** см. [DEPLOYMENT.md](DEPLOYMENT.md)
+
+### Docker деплой (альтернатива)
+
+```bash
+# На сервере
+cd /path/to/project
+cp .env.docker .env
+docker-compose up -d
+```
+
+**Подробная документация:** см. [DOCKER_SETUP.md](DOCKER_SETUP.md)
+
 ## Структура проекта
 
 ```
@@ -307,9 +348,9 @@ MIT License
 
 ## Автор
 
-Илья Маханек
+Маханек Илья
 
 ## Контакты
 
-- Email: makhaiya@gmail.com
+- Email: makhailya@gmail.com
 - GitHub: https://github.com/makhailya

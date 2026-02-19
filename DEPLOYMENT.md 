@@ -1,0 +1,569 @@
+# 🚀 Руководство по деплою Habit Tracker
+
+Полное руководство по настройке удаленного сервера и автоматическому деплою через GitHub Actions.
+
+## 📋 Оглавление
+
+1. [Подготовка сервера](#подготовка-сервера)
+2. [Настройка GitHub Actions](#настройка-github-actions)
+3. [Первый деплой](#первый-деплой)
+4. [Docker деплой](#docker-деплой-дополнительное)
+5. [Обслуживание](#обслуживание)
+6. [Решение проблем](#решение-проблем)
+
+## 🖥️ Подготовка сервера
+
+### Требования
+
+- **ОС**: Ubuntu 20.04 / 22.04 LTS
+- **RAM**: минимум 2GB (рекомендуется 4GB)
+- **Диск**: минимум 20GB
+- **Доступ**: SSH с root правами
+
+### Шаг 1: Первоначальная настройка
+
+```bash
+# Подключитесь к серверу
+ssh root@your_server_ip
+
+# Скачайте скрипт настройки
+curl -O https://raw.githubusercontent.com/your-username/habit_tracker/main/server-setup.sh
+
+# Сделайте его исполняемым
+chmod +x server-setup.sh
+
+# Запустите (укажите URL вашего репозитория)
+sudo ./server-setup.sh https://github.com/your-username/habit_tracker.git
+```
+
+Скрипт автоматически:
+- ✅ Обновит систему
+- ✅ Установит Python, PostgreSQL, Redis, Nginx
+- ✅ Создаст базу данных
+- ✅ Настроит firewall (UFW)
+- ✅ Настроит Fail2Ban
+- ✅ Создаст systemd сервисы
+- ✅ Настроит Nginx как reverse proxy
+- ✅ Установит Docker и Docker Compose
+
+### Шаг 2: Настройка приложения
+
+```bash
+# Переключитесь на пользователя приложения
+sudo -u habituser -i
+
+# Перейдите в директорию проекта
+cd ~/habit_tracker
+
+# Активируйте виртуальное окружение
+source venv/bin/activate
+
+# Установите зависимости
+pip install -r requirements.txt
+pip install gunicorn
+```
+
+### Шаг 3: Настройка .env
+
+```bash
+# Создайте .env файл
+nano .env
+```
+
+Добавьте следующие настройки:
+
+```env
+# Django
+SECRET_KEY=your-very-secure-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=your_server_ip,your_domain.com
+
+# Database
+DB_NAME=habit_tracker_db
+DB_USER=habit_user
+DB_PASSWORD=secure_password_here
+DB_HOST=localhost
+DB_PORT=5432
+
+# Telegram
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+
+# Celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+# CORS
+CORS_ALLOWED_ORIGINS=https://your_domain.com
+```
+
+### Шаг 4: Инициализация базы данных
+
+```bash
+# Применить миграции
+python manage.py migrate
+
+# Собрать статику
+python manage.py collectstatic --noinput
+
+# Создать суперпользователя
+python manage.py createsuperuser
+```
+
+### Шаг 5: Запуск сервисов
+
+```bash
+# Выйдите из пользователя habituser
+exit
+
+# Запустите все сервисы
+sudo systemctl start habit_tracker
+sudo systemctl start celery-habit-tracker
+sudo systemctl start celery-beat-habit-tracker
+
+# Включите автозапуск
+sudo systemctl enable habit_tracker
+sudo systemctl enable celery-habit-tracker
+sudo systemctl enable celery-beat-habit-tracker
+
+# Проверьте статус
+sudo systemctl status habit_tracker
+```
+
+### Шаг 6: Проверка работы
+
+```bash
+# Откройте в браузере
+http://your_server_ip
+
+# Админка
+http://your_server_ip/admin
+
+# Swagger
+http://your_server_ip/swagger
+```
+
+## 🔐 Настройка SSH-ключей
+
+### Генерация SSH-ключей
+
+```bash
+# На вашем локальном компьютере
+ssh-keygen -t ed25519 -C "github-actions-deploy"
+
+# Сохраните в: ~/.ssh/github_actions_deploy
+# Не используйте passphrase для автоматического деплоя
+```
+
+### Добавление публичного ключа на сервер
+
+```bash
+# Скопируйте публичный ключ
+cat ~/.ssh/github_actions_deploy.pub
+
+# Подключитесь к серверу
+ssh root@your_server_ip
+
+# Добавьте ключ для пользователя habituser
+sudo -u habituser mkdir -p /home/habituser/.ssh
+sudo -u habituser nano /home/habituser/.ssh/authorized_keys
+# Вставьте публичный ключ
+
+# Установите правильные права
+sudo chmod 700 /home/habituser/.ssh
+sudo chmod 600 /home/habituser/.ssh/authorized_keys
+sudo chown -R habituser:habituser /home/habituser/.ssh
+```
+
+### Тестирование подключения
+
+```bash
+# С вашего локального компьютера
+ssh -i ~/.ssh/github_actions_deploy habituser@your_server_ip
+
+# Должно подключиться без пароля
+```
+
+## 🔧 Настройка GitHub Actions
+
+### Шаг 1: Добавление Secrets в GitHub
+
+1. Откройте ваш репозиторий на GitHub
+2. Settings → Secrets and variables → Actions
+3. Нажмите "New repository secret"
+
+Добавьте следующие secrets:
+
+| Название | Значение | Описание |
+|----------|----------|----------|
+| `SECRET_KEY` | ваш SECRET_KEY | Django SECRET_KEY |
+| `SERVER_HOST` | IP или домен | Адрес вашего сервера |
+| `SERVER_USER` | habituser | Пользователь для деплоя |
+| `SERVER_PORT` | 22 | SSH порт |
+| `SSH_PRIVATE_KEY` | приватный ключ | Содержимое ~/.ssh/github_actions_deploy |
+| `PROJECT_PATH` | /home/habituser/habit_tracker | Путь к проекту |
+
+### Для Docker деплоя (дополнительно):
+
+| Название | Значение | Описание |
+|----------|----------|----------|
+| `DOCKER_USERNAME` | ваш username | Docker Hub username |
+| `DOCKER_PASSWORD` | ваш токен | Docker Hub access token |
+
+### Шаг 2: Получение SSH приватного ключа
+
+```bash
+# На вашем локальном компьютере
+cat ~/.ssh/github_actions_deploy
+
+# Скопируйте ВЕСЬ вывод, включая:
+# -----BEGIN OPENSSH PRIVATE KEY-----
+# ...
+# -----END OPENSSH PRIVATE KEY-----
+
+# Вставьте в GitHub Secret SSH_PRIVATE_KEY
+```
+
+### Шаг 3: Проверка workflow файла
+
+Workflow файл уже создан в `.github/workflows/ci-cd.yml`
+
+Он включает:
+- ✅ Запуск тестов при каждом push
+- ✅ Проверку code style (flake8)
+- ✅ Измерение покрытия тестами
+- ✅ Автоматический деплой после тестов
+- ✅ Деплой через Docker (опционально)
+
+## 🎯 Первый деплой
+
+### Вариант A: Обычный деплой
+
+```bash
+# 1. Убедитесь, что все изменения закоммичены
+git status
+
+# 2. Отправьте в main или develop ветку
+git push origin main
+
+# 3. GitHub Actions автоматически:
+#    - Запустит тесты
+#    - Задеплоит на сервер (если тесты прошли)
+
+# 4. Следите за процессом
+# GitHub → Actions → последний workflow
+```
+
+### Вариант B: Docker деплой
+
+Для использования Docker деплоя:
+
+1. Раскомментируйте job `deploy-docker` в `.github/workflows/ci-cd.yml`
+2. Добавьте Docker Hub secrets
+3. Push в main ветку
+
+```bash
+git push origin main
+```
+
+GitHub Actions автоматически:
+- Соберет Docker образ
+- Отправит на Docker Hub
+- Задеплоит на сервер через docker-compose
+
+## 🐳 Docker деплой (дополнительное задание)
+
+### Подготовка
+
+```bash
+# На сервере
+cd /home/habituser/habit_tracker
+
+# Создайте .env для Docker
+cp .env.docker .env
+
+# Отредактируйте .env
+nano .env
+
+# Убедитесь что указаны правильные хосты:
+# DB_HOST=db
+# CELERY_BROKER_URL=redis://redis:6379/0
+```
+
+### Первый запуск через Docker
+
+```bash
+# Запустите контейнеры
+docker-compose up -d
+
+# Примените миграции
+docker-compose exec web python manage.py migrate
+
+# Создайте суперпользователя
+docker-compose exec web python manage.py createsuperuser
+
+# Соберите статику
+docker-compose exec web python manage.py collectstatic --noinput
+```
+
+### Настройка Nginx для Docker
+
+```bash
+# Отредактируйте конфигурацию Nginx
+sudo nano /etc/nginx/sites-available/habit_tracker
+```
+
+Измените `proxy_pass`:
+
+```nginx
+location / {
+    proxy_pass http://localhost:8000;  # Docker контейнер
+    # вместо unix:/home/habituser/habit_tracker/habit_tracker.sock
+    ...
+}
+```
+
+```bash
+# Перезапустите Nginx
+sudo systemctl restart nginx
+```
+
+## 📊 Мониторинг и логи
+
+### Проверка статуса сервисов
+
+```bash
+# Django
+sudo systemctl status habit_tracker
+
+# Celery Worker
+sudo systemctl status celery-habit-tracker
+
+# Celery Beat
+sudo systemctl status celery-beat-habit-tracker
+
+# Nginx
+sudo systemctl status nginx
+
+# PostgreSQL
+sudo systemctl status postgresql
+
+# Redis
+sudo systemctl status redis
+```
+
+### Просмотр логов
+
+```bash
+# Django логи
+sudo journalctl -u habit_tracker -f
+
+# Celery логи
+sudo journalctl -u celery-habit-tracker -f
+
+# Nginx access log
+sudo tail -f /var/log/nginx/access.log
+
+# Nginx error log
+sudo tail -f /var/log/nginx/error.log
+
+# Docker логи (если используется Docker)
+docker-compose logs -f
+```
+
+## 🔄 Обслуживание
+
+### Обновление приложения вручную
+
+```bash
+# Переключитесь на пользователя
+sudo -u habituser -i
+
+# Перейдите в проект
+cd ~/habit_tracker
+
+# Активируйте venv
+source venv/bin/activate
+
+# Получите последние изменения
+git pull origin main
+
+# Установите новые зависимости
+pip install -r requirements.txt
+
+# Примените миграции
+python manage.py migrate
+
+# Соберите статику
+python manage.py collectstatic --noinput
+
+# Выйдите из пользователя
+exit
+
+# Перезапустите сервисы
+sudo systemctl restart habit_tracker
+sudo systemctl restart celery-habit-tracker
+sudo systemctl restart celery-beat-habit-tracker
+```
+
+### Бэкап базы данных
+
+```bash
+# Создание бэкапа
+sudo -u postgres pg_dump habit_tracker_db > backup_$(date +%Y%m%d).sql
+
+# Восстановление из бэкапа
+sudo -u postgres psql habit_tracker_db < backup_20240215.sql
+```
+
+### Обновление SSL сертификата (Let's Encrypt)
+
+```bash
+# Установка Certbot
+sudo apt-get install certbot python3-certbot-nginx
+
+# Получение сертификата
+sudo certbot --nginx -d your_domain.com
+
+# Автоматическое обновление
+sudo certbot renew --dry-run
+```
+
+## 🐛 Решение проблем
+
+### Проблема: 502 Bad Gateway
+
+```bash
+# Проверьте статус Django
+sudo systemctl status habit_tracker
+
+# Проверьте логи
+sudo journalctl -u habit_tracker -n 50
+
+# Перезапустите сервис
+sudo systemctl restart habit_tracker
+```
+
+### Проблема: Celery не работает
+
+```bash
+# Проверьте Redis
+redis-cli ping  # Должно вернуть PONG
+
+# Проверьте логи Celery
+sudo journalctl -u celery-habit-tracker -n 50
+
+# Перезапустите Celery
+sudo systemctl restart celery-habit-tracker
+```
+
+### Проблема: База данных недоступна
+
+```bash
+# Проверьте PostgreSQL
+sudo systemctl status postgresql
+
+# Проверьте подключение
+sudo -u postgres psql -c "SELECT 1;"
+
+# Перезапустите PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### Проблема: GitHub Actions не может подключиться
+
+```bash
+# Проверьте SSH ключ на сервере
+cat /home/habituser/.ssh/authorized_keys
+
+# Проверьте права
+ls -la /home/habituser/.ssh/
+
+# Должно быть:
+# drwx------ (700) для .ssh
+# -rw------- (600) для authorized_keys
+```
+
+### Проблема: Статика не загружается
+
+```bash
+# Пересоберите статику
+sudo -u habituser bash -c "cd ~/habit_tracker && source venv/bin/activate && python manage.py collectstatic --noinput"
+
+# Проверьте права
+ls -la /home/habituser/habit_tracker/staticfiles/
+
+# Проверьте конфигурацию Nginx
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+## 🔒 Безопасность
+
+### Чеклист безопасности
+
+- [x] DEBUG=False в production
+- [x] Сильный SECRET_KEY
+- [x] Сильный пароль PostgreSQL
+- [x] UFW Firewall настроен
+- [x] Fail2Ban активирован
+- [x] SSH только по ключам (отключить пароли)
+- [x] Регулярные обновления системы
+- [x] HTTPS с Let's Encrypt
+- [x] Регулярные бэкапы БД
+
+### Отключение SSH по паролю
+
+```bash
+# Отредактируйте конфигурацию SSH
+sudo nano /etc/ssh/sshd_config
+
+# Измените:
+PasswordAuthentication no
+PermitRootLogin no
+
+# Перезапустите SSH
+sudo systemctl restart sshd
+```
+
+## 📞 Дополнительная информация
+
+### Полезные команды
+
+```bash
+# Перезапуск всех сервисов
+sudo systemctl restart habit_tracker celery-habit-tracker celery-beat-habit-tracker nginx
+
+# Просмотр использования ресурсов
+htop
+
+# Свободное место на диске
+df -h
+
+# Использование памяти
+free -h
+
+# Активные подключения
+sudo netstat -tulpn
+```
+
+### Структура проекта на сервере
+
+```
+/home/habituser/
+└── habit_tracker/
+    ├── config/              # Настройки Django
+    ├── users/               # Приложение пользователей
+    ├── habits/              # Приложение привычек
+    ├── venv/                # Виртуальное окружение
+    ├── staticfiles/         # Собранная статика
+    ├── media/               # Загруженные файлы
+    ├── .env                 # Переменные окружения
+    ├── manage.py
+    └── requirements.txt
+```
+
+---
+
+**Готово! Проект задеплоен! 🎉**
+
+Для автоматического деплоя просто делайте `git push` - остальное сделает GitHub Actions!

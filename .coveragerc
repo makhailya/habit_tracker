@@ -1,0 +1,12 @@
+[run]
+source = .
+omit =
+    */migrations/*
+    */venv/*
+    */env/*
+    */tests.py
+    */test_*.py
+    manage.py
+    config/wsgi.py
+    */tasks.py
+    */telegram_bot.py

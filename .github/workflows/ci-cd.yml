@@ -68,9 +68,9 @@ jobs:
         echo "CELERY_RESULT_BACKEND=redis://localhost:6379/0" >> .env
 
     - name: Run migrations
-  run: |
-    python manage.py migrate users
-    python manage.py migrate
+      run: |
+         python manage.py migrate users
+         python manage.py migrate
 
     - name: Run tests
       run: |

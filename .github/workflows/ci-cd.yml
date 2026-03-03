@@ -89,16 +89,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Deploy application
-        run: |
-          cd ${{ secrets.PROJECT_PATH }}
-          git pull origin ${{ github.ref_name }}
-          source venv/bin/activate
-          pip install -r requirements.txt
-          python manage.py migrate
-          python manage.py collectstatic --noinput
-          sudo systemctl restart habit_tracker
-          sudo systemctl restart celery-habit-tracker
-          sudo systemctl restart celery-beat-habit-tracker
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            echo "Current user: $(whoami)"
+            echo "Current directory: $(pwd)"
+            echo "Trying to cd to: ${{ secrets.PROJECT_PATH }}"
+            cd "${{ secrets.PROJECT_PATH }}"
+            echo "Successfully changed directory to: $(pwd)"
+            git pull origin ${{ github.ref_name }}
+            source venv/bin/activate
+            pip install -r requirements.txt
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+            sudo systemctl restart habit_tracker
+            # Если сервисы celery не используются, закомментируйте следующие строки
+            sudo systemctl restart celery-habit-tracker || true
+            sudo systemctl restart celery-beat-habit-tracker || true
 
   deploy-docker:
     name: Deploy with Docker
@@ -127,7 +138,7 @@ jobs:
           cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/habit-tracker:buildcache,mode=max
       - name: Deploy with Docker
         run: |
-          cd /home/makhailya/habit_tracker
+          cd "${{ secrets.PROJECT_PATH }}"
           if [ ! -f .env ]; then
             cp .env.docker .env
           fi
@@ -140,10 +151,9 @@ jobs:
         if: success()
         run: |
           echo "🎉 Deployment successful!"
-          echo "Application URL: http://192.168.3.179"
+          echo "Application URL: http://${{ secrets.SERVER_HOST }}"
       - name: Notify deployment failure
         if: failure()
         run: |
           echo "❌ Deployment failed!"
           exit 1
-          

@@ -69,8 +69,8 @@ jobs:
 
     - name: Run migrations
       run: |
-         python manage.py migrate users
-         python manage.py migrate
+        python manage.py migrate users
+        python manage.py migrate
 
     - name: Run tests
       run: |
@@ -192,3 +192,4 @@ jobs:
       run: |
         echo "❌ Deployment failed!"
         exit 1
+        

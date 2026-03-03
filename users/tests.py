@@ -81,7 +81,7 @@ class UserLoginTest(APITestCase):
             self.login_url,
             {'username': self.user_data['email'],
              'password': self.user_data['password']}
-        ),
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
 

@@ -47,7 +47,7 @@ docker-compose exec web python manage.py createsuperuser
 
 # 5. Откройте в браузере
 # http://localhost:8000
-```
+
 
 **Подробная документация:** см. [DOCKER_SETUP.md](DOCKER_SETUP.md)
 
@@ -341,6 +341,166 @@ curl -X POST http://localhost:8000/api/habits/my-habits/ \
     "is_public": false
   }'
 ```
+## Настройка удаленного сервера (локальный Ubuntu)
+
+### Предварительные требования
+- Сервер с Ubuntu 22.04 (в данном проекте используется локальный сервер на базе Mac mini с Ubuntu)
+- Доступ по SSH
+- Пользователь с правами `sudo`
+
+### Шаги по настройке
+
+1. **Подключитесь к серверу:**
+   ```bash
+   ssh user@server-ip
+   
+Запустите скрипт автоматической настройки:
+Скрипт server-setup.sh выполнит:
+
+Обновление системы
+
+Установку Python, PostgreSQL, Redis, Nginx, Docker и других зависимостей
+
+Создание системного пользователя habituser
+
+Настройку базы данных и Redis
+
+Клонирование репозитория (если передан URL)
+
+Создание виртуального окружения
+
+Настройку файрвола и Fail2Ban
+
+Генерацию systemd-сервисов для Gunicorn и Celery
+
+Настройку Nginx
+
+Пример запуска:
+
+bash
+sudo ./server-setup.sh https://github.com/makhailya/habit_tracker.git
+Ручная настройка переменных окружения:
+Переключитесь на пользователя habituser и создайте файл .env в папке проекта:
+
+bash
+sudo -u habituser -i
+cd ~/habit_tracker
+nano .env
+Заполните его по образцу .env.example, обязательно укажите:
+
+SECRET_KEY (сгенерируйте новый)
+
+DEBUG=False
+
+ALLOWED_HOSTS – добавьте IP сервера и ваш ngrok-домен (если используете)
+
+параметры БД (созданы скриптом)
+
+при необходимости TELEGRAM_BOT_TOKEN
+
+Примените миграции и соберите статику:
+
+bash
+source venv/bin/activate
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py createsuperuser
+Запустите и включите сервисы:
+
+bash
+sudo systemctl start habit_tracker
+sudo systemctl enable habit_tracker
+# Если используются Celery:
+sudo systemctl start celery-habit-tracker celery-beat-habit-tracker
+sudo systemctl enable celery-habit-tracker celery-beat-habit-tracker
+Проверьте работу Nginx:
+
+bash
+sudo systemctl status nginx
+Приложение должно быть доступно по IP сервера (порт 80).
+
+Безопасность
+Закрыты ненужные порты (UFW разрешает только 22, 80, 443, 8000)
+
+Доступ по SSH только по ключам
+
+Fail2Ban активен
+
+Пароли и секреты хранятся в .env и не попадают в репозиторий
+
+CI/CD через GitHub Actions
+Структура workflow
+Файл .github/workflows/ci-cd.yml содержит два основных задания:
+
+Run Tests: запускается на стандартном раннере GitHub (ubuntu-latest). Выполняет:
+
+установку зависимостей
+
+создание тестового .env
+
+миграции
+
+тесты Django, coverage, flake8
+
+Deploy to Server: запускается только после успешного прохождения тестов и выполняется на self-hosted раннере, установленном на сервере. Шаги деплоя:
+
+подключение по SSH к серверу
+
+переход в папку проекта
+
+git pull
+
+активация виртуального окружения
+
+установка новых зависимостей
+
+миграции, сборка статики
+
+перезапуск сервисов habit_tracker (и опционально Celery)
+
+Self-hosted runner
+Для выполнения деплоя на локальный сервер используется self-hosted runner. Он был установлен и зарегистрирован в репозитории. Подробности установки можно найти в официальной документации GitHub.
+
+Переменные окружения и секреты
+Все чувствительные данные вынесены в GitHub Secrets:
+
+Secret Name	Описание
+SECRET_KEY	Секретный ключ Django
+SERVER_HOST	IP сервера (192.168.3.179)
+SERVER_USER	Пользователь для деплоя (habituser)
+SSH_PRIVATE_KEY	Приватный SSH-ключ для подключения к серверу
+SERVER_PORT	Порт SSH (22)
+PROJECT_PATH	Абсолютный путь к проекту на сервере (/home/habituser/habit_tracker)
+Эти секреты подключаются в workflow и используются для безопасного доступа к серверу.
+
+Как это работает
+Разработчик пушит изменения в ветку develop (или main).
+
+GitHub Actions запускает workflow.
+
+Запускаются тесты. Если они проходят успешно, запускается задание деплоя.
+
+Self-hosted runner на сервере выполняет команды обновления кода и перезапуска сервисов.
+
+После завершения обновлённая версия приложения становится доступна по IP сервера.
+
+Требуемые секреты для корректной работы
+Перед первым запуском необходимо добавить перечисленные выше секреты в настройках репозитория (Settings → Secrets and variables → Actions).
+
+Демонстрация работы
+Локальный доступ (в локальной сети)
+IP сервера: 192.168.3.179
+
+Админка: http://192.168.3.179/admin
+
+Swagger: http://192.168.3.179/swagger
+
+Публичный доступ через ngrok (временно)
+Для демонстрации преподавателя используется ngrok, который создаёт публичный туннель на локальный сервер. Текущий адрес:
+
+text
+https://noncohesively-noncompromised-rosenda.ngrok-free.dev
+Примечание: ссылка активна только при запущенном ngrok. При повторной демонстрации может потребоваться обновить ссылку.
 
 ## Лицензия
 

@@ -27,9 +27,8 @@ class HabitViewSet(viewsets.ModelViewSet):
     pagination_class = HabitPagination
 
     def get_queryset(self):
-        """
-        Возвращает только привычки текущего пользователя.
-        """
+        if not self.request.user.is_authenticated:
+            return Habit.objects.none()  # возвращаем пустой queryset
         return Habit.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):

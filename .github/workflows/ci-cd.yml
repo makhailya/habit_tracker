@@ -67,12 +67,13 @@ jobs:
         echo "CELERY_BROKER_URL=redis://localhost:6379/0" >> .env
         echo "CELERY_RESULT_BACKEND=redis://localhost:6379/0" >> .env
 
-    - name: Run migrations
+    - name: Run migrations in correct order
       run: |
         python manage.py migrate contenttypes
         python manage.py migrate auth
         python manage.py migrate users
         python manage.py migrate
+        echo "✅ Migrations completed successfully"
 
     - name: Run tests
       run: |
@@ -125,7 +126,7 @@ jobs:
     name: Deploy to Server via Docker
     needs: [test, docker-build]
     runs-on: self-hosted
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/homework/docker-cicd'
 
     steps:
     - name: 📥 Checkout code
@@ -143,20 +144,16 @@ jobs:
         ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
           cd ${{ secrets.PROJECT_PATH }}
           
-          # Остановка контейнеров
-          docker-compose down
-          
-          # Получение последних изменений
+          echo "📦 Pulling latest changes..."
           git pull origin ${{ github.ref_name }}
           
-          # Пересборка и запуск контейнеров
-          docker-compose build --no-cache
-          docker-compose up -d
+          echo "🐳 Building and starting containers..."
+          docker-compose up -d --build
           
-          # Проверка статуса
+          echo "✅ Checking container status..."
           docker-compose ps
           
-          # Очистка неиспользуемых образов
+          echo "🧹 Cleaning up old images..."
           docker image prune -af
           
           echo "✅ Deployment completed successfully!"
@@ -176,9 +173,9 @@ jobs:
         echo "❌ Deployment failed!"
         exit 1
 
-  # Дополнительное задание: Деплой через Docker
+  # Дополнительное задание: Деплой через Docker Hub
   deploy-docker:
-    name: Deploy with Docker
+    name: Deploy with Docker Hub
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, homework/docker-cicd ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, homework/docker-cicd ]
 
 env:
   PYTHON_VERSION: '3.11'
@@ -243,4 +243,3 @@ jobs:
       run: |
         echo "❌ Deployment failed!"
         exit 1
-        

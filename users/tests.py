@@ -1,8 +1,18 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.core.management import call_command
+from django.db import connection
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+
+# Принудительно применяем миграции в правильном порядке перед всеми тестами
+def setUpModule():
+    with connection.constraint_checks_disabled():
+        call_command('migrate', 'contenttypes', verbosity=0, interactive=False)
+        call_command('migrate', 'auth', verbosity=0, interactive=False)
+        call_command('migrate', 'users', verbosity=0, interactive=False)
+        call_command('migrate', verbosity=0, interactive=False)
 
 User = get_user_model()
 
@@ -81,7 +91,7 @@ class UserLoginTest(APITestCase):
             self.login_url,
             {'username': self.user_data['email'],
              'password': self.user_data['password']}
-        ),
+        )  # <- запятая удалена!
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
 

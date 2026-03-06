@@ -69,7 +69,7 @@ jobs:
 
     - name: Run migrations
       run: |
-           python manage.py migrate contenttypes
+        python manage.py migrate contenttypes
         python manage.py migrate auth
         python manage.py migrate users
         python manage.py migrate

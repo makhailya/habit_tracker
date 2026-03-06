@@ -2,6 +2,7 @@
 Django settings for habit_tracker project.
 """
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -149,16 +150,11 @@ CELERY_BEAT_SCHEDULE = {}
 # Telegram settings
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 
-# Test settings
-import sys
-
+# Test settings - disable migrations for tests
 if 'test' in sys.argv:
     class DisableMigrations:
         def __contains__(self, item):
             return True
-
         def __getitem__(self, item):
             return None
-
-
     MIGRATION_MODULES = DisableMigrations()

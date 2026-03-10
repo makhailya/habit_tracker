@@ -83,3 +83,7 @@ Thumbs.db
 # Database backups
 *.sql
 *.dump
+
+celerybeat-schedule*
+*.db-shm
+*.db-wal

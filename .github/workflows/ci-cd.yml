@@ -83,36 +83,35 @@ jobs:
   # Деплой через Docker Compose
   deploy:
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📦 Install dependencies
-        run: |
-          /home/makhailya/projects/habit_tracker/venv/bin/pip install -r $GITHUB_WORKSPACE/requirements.txt --quiet
+      - name: 📂 Sync project files via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: -avz --delete --exclude='.git' --exclude='venv' --exclude='.env'
+          path: ./
+          remote_path: /home/makhailya/projects/habit_tracker/
+          remote_host: ${{ secrets.DEPLOY_HOST }}
+          remote_user: ${{ secrets.DEPLOY_USER }}
+          remote_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
 
-      - name: 🗃️ Run migrations
-        run: |
-          /home/makhailya/projects/habit_tracker/venv/bin/python $GITHUB_WORKSPACE/manage.py migrate --noinput
-
-      - name: 📂 Collect static files
-        run: |
-          /home/makhailya/projects/habit_tracker/venv/bin/python $GITHUB_WORKSPACE/manage.py collectstatic --noinput
-
-      - name: 🔄 Sync project files
-        run: |
-          rsync -av --exclude='.git' --exclude='venv' --exclude='.env' \
-            $GITHUB_WORKSPACE/ \
-            /home/makhailya/projects/habit_tracker/
-
-      - name: 🔄 Restart services
-        run: |
-          sudo systemctl restart habit_tracker
-          sudo systemctl restart habit_tracker_celery
-          sudo systemctl restart habit_tracker_beat
-
-      - name: ✅ Check services
-        run: |
-          sudo systemctl is-active habit_tracker
-          sudo systemctl is-active habit_tracker_celery
-          sudo systemctl is-active habit_tracker_beat
-          echo "🎉 Deployed successfully!"
+      - name: 🐍 Run migrations & collectstatic on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/makhailya/projects/habit_tracker
+            source venv/bin/activate
+            python manage.py migrate --noinput
+            python manage.py collectstatic --noinput
+            sudo systemctl restart habit_tracker
+            sudo systemctl restart habit_tracker_celery
+            sudo systemctl restart habit_tracker_beat
+            systemctl is-active habit_tracker
+            systemctl is-active habit_tracker_celery
+            systemctl is-active habit_tracker_beat
+            echo "🎉 Deployed successfully!"

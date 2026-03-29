@@ -10,6 +10,8 @@ env:
   PYTHON_VERSION: '3.13'
 
 jobs:
+  # Тесты оставляем на ubuntu-latest (в облаке GitHub),
+  # чтобы не нагружать ваш сервер лишними базами данных.
   test:
     name: Run Tests
     runs-on: ubuntu-latest
@@ -47,7 +49,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Create .env file
+      - name: Create .env file for tests
         run: |
           echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
           echo "DEBUG=False" >> .env
@@ -80,38 +82,39 @@ jobs:
           file: ./coverage.xml
           fail_ci_if_error: false
 
-  # Деплой через Docker Compose
+  # --- ОБНОВЛЕННЫЙ ДЕПЛОЙ ---
   deploy:
-    runs-on: ubuntu-latest
+    name: Deploy to Self-Hosted Server
+    runs-on: self-hosted  # <--- Запускаем прямо на вашем сервере
+    needs: test           # Деплоим только если тесты прошли
     if: github.ref == 'refs/heads/develop'
+
     steps:
-      - uses: actions/checkout@v4
+      - name: 📂 Checkout code
+        uses: actions/checkout@v4 # Раннер сам скачает код в свою рабочую папку
 
-      - name: 📂 Sync project files via rsync
-        uses: burnett01/rsync-deployments@7.0.1
-        with:
-          switches: -avz --delete --exclude='.git' --exclude='venv' --exclude='.env'
-          path: ./
-          remote_path: /home/makhailya/projects/habit_tracker/
-          remote_host: ${{ secrets.DEPLOY_HOST }}
-          remote_user: ${{ secrets.DEPLOY_USER }}
-          remote_key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      - name: 🔄 Sync files to project directory
+        run: |
+          # Копируем код из папки раннера в папку вашего проекта
+          # Исключаем venv и .env, чтобы не затереть серверные настройки
+          rsync -avz --delete --exclude='.git' --exclude='venv' --exclude='.env' ./ /home/makhailya/projects/habit_tracker/
 
-      - name: 🐍 Run migrations & collectstatic on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/makhailya/projects/habit_tracker
-            source venv/bin/activate
-            python manage.py migrate --noinput
-            python manage.py collectstatic --noinput
-            sudo systemctl restart habit_tracker
-            sudo systemctl restart habit_tracker_celery
-            sudo systemctl restart habit_tracker_beat
-            systemctl is-active habit_tracker
-            systemctl is-active habit_tracker_celery
-            systemctl is-active habit_tracker_beat
-            echo "🎉 Deployed successfully!"
+      - name: 🚀 Run migrations and Restart services
+        run: |
+          cd /home/makhailya/projects/habit_tracker
+          
+          # Активируем окружение и обновляем зависимости (если нужно)
+          source venv/bin/activate
+          pip install -r requirements.txt
+          
+          # Миграции и статика
+          python manage.py migrate --noinput
+          python manage.py collectstatic --noinput
+          
+          # Перезапуск сервисов через sudo
+          # (Убедитесь, что у пользователя makhailya есть права на sudo без пароля для systemctl)
+          sudo systemctl restart habit_tracker
+          sudo systemctl restart habit_tracker_celery
+          sudo systemctl restart habit_tracker_beat
+          
+          echo "🎉 Deployed successfully on self-hosted runner!"

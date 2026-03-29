@@ -82,34 +82,28 @@ jobs:
 
   # Деплой через Docker Compose
   deploy:
-    name: Deploy to Server
-    needs: [ test ]
-    runs-on: self-hosted
-    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
-
+    runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
       - name: 🔑 Copy .env file
-        run: |
-          cp /home/makhailya/projects/habit_tracker/.env $GITHUB_WORKSPACE/.env
+        run: cp /home/makhailya/projects/habit_tracker/.env $GITHUB_WORKSPACE/.env
+
       - name: 📦 Install dependencies
         run: |
-          source /home/makhailya/projects/habit_tracker/venv/bin/activate
-          source venv/bin/activate
-          pip install -r requirements.txt --quiet
+          /home/makhailya/projects/habit_tracker/venv/bin/pip install -r $GITHUB_WORKSPACE/requirements.txt --quiet
 
       - name: 🗃️ Run migrations
         run: |
-          source /home/makhailya/projects/habit_tracker/venv/bin/activate
-          source venv/bin/activate
-          python manage.py migrate --noinput
+          /home/makhailya/projects/habit_tracker/venv/bin/python $GITHUB_WORKSPACE/manage.py migrate --noinput
 
       - name: 📂 Collect static files
         run: |
-          source /home/makhailya/projects/habit_tracker/venv/bin/activate
-          source venv/bin/activate
-          python manage.py collectstatic --noinput
+          /home/makhailya/projects/habit_tracker/venv/bin/python $GITHUB_WORKSPACE/manage.py collectstatic --noinput
+
+      - name: 🔄 Sync project files
+        run: |
+          rsync -av --exclude='.git' --exclude='venv' \
+            $GITHUB_WORKSPACE/ \
+            /home/makhailya/projects/habit_tracker/
 
       - name: 🔄 Restart services
         run: |

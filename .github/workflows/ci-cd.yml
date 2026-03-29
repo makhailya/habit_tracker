@@ -95,9 +95,15 @@ jobs:
 
       - name: 🔄 Sync files to project directory
         run: |
-          # Копируем код из папки раннера в папку вашего проекта
-          # Исключаем venv и .env, чтобы не затереть серверные настройки
-          rsync -avz --delete --exclude='.git' --exclude='venv' --exclude='.env' ./ /home/makhailya/projects/habit_tracker/
+          # Создаем папку, если её нет
+          mkdir -p /home/makhailya/projects/habit_tracker/
+          
+          # Синхронизируем файлы
+          rsync -avz --delete \
+            --exclude='.git' \
+            --exclude='venv' \
+            --exclude='.env' \
+            ./ /home/makhailya/projects/habit_tracker/
 
       - name: 🚀 Run migrations and Restart services
         run: |

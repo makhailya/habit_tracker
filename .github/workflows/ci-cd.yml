@@ -90,22 +90,24 @@ jobs:
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
-
+      - name: 🔑 Copy .env file
+        run: |
+          cp /home/makhailya/projects/habit_tracker/.env $GITHUB_WORKSPACE/.env
       - name: 📦 Install dependencies
         run: |
-          cd /home/makhailya/projects/habit_tracker
+          source /home/makhailya/projects/habit_tracker/venv/bin/activate
           source venv/bin/activate
           pip install -r requirements.txt --quiet
 
       - name: 🗃️ Run migrations
         run: |
-          cd /home/makhailya/projects/habit_tracker
+          source /home/makhailya/projects/habit_tracker/venv/bin/activate
           source venv/bin/activate
           python manage.py migrate --noinput
 
       - name: 📂 Collect static files
         run: |
-          cd /home/makhailya/projects/habit_tracker
+          source /home/makhailya/projects/habit_tracker/venv/bin/activate
           source venv/bin/activate
           python manage.py collectstatic --noinput
 
